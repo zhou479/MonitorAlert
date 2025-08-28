@@ -41,7 +41,7 @@ class PriceMonitor {
           
         // 消息监听
         this.wsClient.on('formattedMessage', (data) => {
-            console.log(data)
+            logger.info(data)
             
             // 处理数据
             this.handlePriceChange(data);
@@ -275,6 +275,4 @@ class PriceMonitor {
     // }
 }
 
-module.exports = PriceMonitor; 
-// const monitor = new PriceMonitor();
-// monitor.start();
+module.exports = PriceMonitor;
