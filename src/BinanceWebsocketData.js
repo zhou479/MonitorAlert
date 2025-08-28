@@ -2,7 +2,7 @@ const { WebsocketClient } = require('binance');
 const logger = require('./utils/LogSetting');
 const { sendFWAlert } = require('./utils/AlertSetting');
 
-const delay = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+// const delay = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
 class PriceMonitor {
     constructor() {
@@ -15,6 +15,14 @@ class PriceMonitor {
         this.firstFlag = 3;
         this.secondFlag = 3;
         this.ThirdFlag = 3;
+
+        // 告警冷却（毫秒）与各档位冷却时间戳
+        this.COOLDOWN_MS = 90000;
+        this.cooldowns = {
+            level1: 0,
+            level2: 0,
+            level3: 0
+        };
     }
 
     // 初始化WebSocket客户端
@@ -100,40 +108,70 @@ class PriceMonitor {
             }
             
             // 使用配置中的阈值进行告警判断
-            if (close >= 0.5 && close < 1.2 && this.firstFlag != 0) {
-                this.firstFlag--;
-                try {
-                    // await sendFWAlert();
-                    logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
-                } catch (error) {
-                    logger.error('发送通知失败:', error.message);
+            if (close >= 0.5 && close < 1.2) {
+                const now = Date.now();
+
+                if (this.firstFlag == 0 && (now - this.cooldowns.level1 >= this.COOLDOWN_MS * 10)) {
+                    this.firstFlag = 3;
+                    this.cooldowns.level1 = now;
                 }
-                logger.info(`延迟四十秒`);
-                await delay(40);
+
+                if (this.firstFlag > 0 && (now - this.cooldowns.level1 >= this.COOLDOWN_MS)) {
+                    this.firstFlag--;
+                    try {
+                        // await sendFWAlert();
+                        logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
+                    } catch (error) {
+                        logger.error('发送通知失败:', error.message);
+                    }
+                    this.cooldowns.level1 = now;
+                } else {
+                    logger.debug(`跳过level1告警, 冷却中 ${(this.COOLDOWN_MS - (now - this.cooldowns.level1)) / 1000}s`);
+                }
             }
 
-            if (close >= 1.2 && close < 2 && this.secondFlag) {
-                this.secondFlag--;
-                try {
-                    await sendFWAlert();
-                    logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
-                } catch (error) {
-                    logger.error('发送通知失败:', error.message);
+            if (close >= 1.2 && close < 2) {
+                const now = Date.now();
+
+                if (this.secondFlag == 0 && now - this.cooldowns.level2 >= this.COOLDOWN_MS * 10) {
+                    this.secondFlag = 3;
+                    this.cooldowns.level2 = now;
                 }
-                logger.info(`延迟四十秒`);
-                await delay(40);
+
+                if (this.secondFlag > 0 && (now - this.cooldowns.level2 >= this.COOLDOWN_MS)) {
+                    this.secondFlag--;
+                    try {
+                        await sendFWAlert();
+                        logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
+                    } catch (error) {
+                        logger.error('发送通知失败:', error.message);
+                    }
+                    this.cooldowns.level2 = now;
+                } else {
+                    logger.debug(`跳过level2告警，冷却中 ${(this.COOLDOWN_MS - (now - this.cooldowns.level2)) / 1000}s`);
+                }
             }
 
             if (close >= 2 && this.ThirdFlag) {
-                this.ThirdFlag--;
-                try {
-                    await sendFWAlert();
-                    logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
-                } catch (error) {
-                    logger.error('发送通知失败:', error.message);
+                const now = Date.now();
+
+                if (this.ThirdFlag == 0 && now - this.cooldowns.level3 >= this.COOLDOWN_MS * 10) {
+                    this.ThirdFlag = 3;
+                    this.cooldowns.level3 = now;
                 }
-                logger.info(`延迟四十秒`);
-                await delay(40);
+
+                if (this.ThirdFlag > 0 && (now - this.cooldowns.level3 >= this.COOLDOWN_MS)) {
+                    this.ThirdFlag--;
+                    try {
+                        await sendFWAlert();
+                        logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
+                    } catch (error) {
+                        logger.error('发送通知失败:', error.message);
+                    }
+                    this.cooldowns.level3 = now;
+                } else {
+                    logger.debug(`跳过level3告警，冷却中 ${(this.COOLDOWN_MS - (now - this.cooldowns.level3)) / 1000}s`);
+                }
             }
             
             logger.info(`[${symbol}] 最新价格为${close}`);
