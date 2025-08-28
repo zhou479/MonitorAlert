@@ -103,13 +103,13 @@ class PriceMonitor {
             if (close >= 0.5 && close < 1.2 && this.firstFlag != 0) {
                 this.firstFlag--;
                 try {
-                    await sendFWAlert();
+                    // await sendFWAlert();
                     logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
                 } catch (error) {
                     logger.error('发送通知失败:', error.message);
                 }
-                delay(40);
-                logger.info(`延迟四十秒`)
+                logger.info(`延迟四十秒`);
+                await delay(40);
             }
 
             if (close >= 1.2 && close < 2 && this.secondFlag) {
@@ -120,8 +120,8 @@ class PriceMonitor {
                 } catch (error) {
                     logger.error('发送通知失败:', error.message);
                 }
-                delay(40);
-                logger.info(`延迟四十秒`)
+                logger.info(`延迟四十秒`);
+                await delay(40);
             }
 
             if (close >= 2 && this.ThirdFlag) {
@@ -132,8 +132,8 @@ class PriceMonitor {
                 } catch (error) {
                     logger.error('发送通知失败:', error.message);
                 }
-                delay(40);
-                logger.info(`延迟四十秒`)
+                logger.info(`延迟四十秒`);
+                await delay(40);
             }
             
             logger.info(`[${symbol}] 最新价格为${close}`);
