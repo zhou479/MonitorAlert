@@ -17,7 +17,7 @@ class PriceMonitor {
         this.ThirdFlag = 3;
 
         // 告警冷却（毫秒）与各档位冷却时间戳
-        this.COOLDOWN_MS = 9000;
+        this.COOLDOWN_MS = 90000;
         this.lastAlertTime = {      //上一次发出警报的时间戳
             level1: 0,
             level2: 0,
