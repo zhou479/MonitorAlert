@@ -49,7 +49,7 @@ class PriceMonitor {
           
         // 消息监听
         this.wsClient.on('formattedMessage', (data) => {
-            console.log(data);
+            // console.log(data);
             
             // 处理数据
             this.handlePriceChange(data);
