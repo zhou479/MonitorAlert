@@ -17,12 +17,12 @@ class PriceMonitor {
         this.ThirdFlag = 3;
 
         // 告警冷却（毫秒）与各档位冷却时间戳
-        this.COOLDOWN_MS = 90000;
-        this.cooldowns = {
+        this.COOLDOWN_MS = 9000;
+        this.lastAlertTime = {      //上一次发出警报的时间戳
             level1: 0,
             level2: 0,
             level3: 0
-        };
+        }
     }
 
     // 初始化WebSocket客户端
@@ -106,76 +106,74 @@ class PriceMonitor {
                 logger.warn(`${symbol} 收到无效的价格数据: 最新价格=${close}`);
                 return;
             }
-            
-            // 使用配置中的阈值进行告警判断
-            if (close >= 0.5 && close < 1.2) {
-                const now = Date.now();
 
-                if (this.firstFlag == 0 && (now - this.cooldowns.level1 >= this.COOLDOWN_MS * 10)) {
+            const now = Date.now();
+
+            // 判断价格区间、触发警报和重置警报功能
+            switch (true) {
+                case (close < 0.9):
                     this.firstFlag = 3;
-                    this.cooldowns.level1 = now;
-                }
-
-                if (this.firstFlag > 0 && (now - this.cooldowns.level1 >= this.COOLDOWN_MS)) {
-                    this.firstFlag--;
-                    try {
-                        // await sendFWAlert();
-                        logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
-                    } catch (error) {
-                        logger.error('发送通知失败:', error.message);
+                    logger.info(`最新价格小于0.6, 重置level1报警次数为3`);
+                    break;
+                case (close >= 0.9 && close < 1.8):
+                    if (this.firstFlag > 0 && (now - this.lastAlertTime.level1 >= this.COOLDOWN_MS)) {
+                        // 还有警报发送次数，且距离上次发出时间间隔足够长，则发送警报
+                        this.firstFlag--;
+                        sendFWAlert();
+                        logger.success(`最新价格大于0.6且小于1.2, 发送level1警报, 剩余报警次数 ${this.firstFlag} 🚨🚨🚨`);
+                        this.lastAlertTime.level1 = now;
+                    } else if(this.firstFlag > 0 && (now - this.lastAlertTime.level1 < this.COOLDOWN_MS)){
+                        // 还有发送次数，但距离上次警报过短，则跳过
+                        logger.warn(`距离上次发出警报时间过短,跳过level1告警`);
+                    } else {
+                        // 无警报发送次数，该价格段的警报发送完毕，目前价格长期处于这个价格段，不再发送警报
+                        logger.warn(`level1无告警发送次数,价格稳定`);
+                        if (now - this.lastAlertTime.level1 >= this.COOLDOWN_MS * 20) {
+                            this.secondFlag = 3;
+                            logger.info(`最新价格大于0.6且小于1.2, 重置level2报警次数为3`);
+                        }
                     }
-                    this.cooldowns.level1 = now;
-                } else {
-                    logger.debug(`跳过level1告警, 冷却中 ${(this.COOLDOWN_MS - (now - this.cooldowns.level1)) / 1000}s`);
-                }
-            }
-
-            if (close >= 1.2 && close < 2) {
-                const now = Date.now();
-
-                if (this.secondFlag == 0 && now - this.cooldowns.level2 >= this.COOLDOWN_MS * 10) {
-                    this.secondFlag = 3;
-                    this.cooldowns.level2 = now;
-                }
-
-                if (this.secondFlag > 0 && (now - this.cooldowns.level2 >= this.COOLDOWN_MS)) {
-                    this.secondFlag--;
-                    try {
-                        await sendFWAlert();
-                        logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
-                    } catch (error) {
-                        logger.error('发送通知失败:', error.message);
+                    break;
+                case (close >= 1.8 && close < 2.7):
+                    if (this.secondFlag > 0 && (now - this.lastAlertTime.level2 >= this.COOLDOWN_MS)) {
+                        // 还有警报发送次数，且距离上次发出时间间隔足够长，则发送警报
+                        this.secondFlag--;
+                        sendFWAlert();
+                        logger.success(`最新价格大于1.2且小于1.8,发送level2警报, 剩余报警次数 ${this.secondFlag} 🚨🚨🚨`);
+                        this.lastAlertTime.level2 = now;
+                    } else if(this.secondFlag > 0 && (now - this.lastAlertTime.level2 < this.COOLDOWN_MS)){
+                        // 还有发送次数，但距离上次警报过短，则跳过
+                        logger.warn(`距离上次发出警报时间过短,跳过level2告警`);
+                    } else {
+                        // 无警报发送次数，该价格段的警报发送完毕，目前价格长期处于这个价格段，不再发送警报
+                        logger.warn(`level2无告警发送次数,价格稳定`);
+                        // 如果价格稳定在此区间，则重置下一级别警报次数
+                        if (now - this.lastAlertTime.level2 >= this.COOLDOWN_MS * 40) {
+                            this.ThirdFlag = 3;
+                            logger.info(`最新价格大于0.6且小于1.2, 重置level2报警次数为3`);
+                        }
                     }
-                    this.cooldowns.level2 = now;
-                } else {
-                    logger.debug(`跳过level2告警，冷却中 ${(this.COOLDOWN_MS - (now - this.cooldowns.level2)) / 1000}s`);
-                }
-            }
-
-            if (close >= 2 && this.ThirdFlag) {
-                const now = Date.now();
-
-                if (this.ThirdFlag == 0 && now - this.cooldowns.level3 >= this.COOLDOWN_MS * 10) {
-                    this.ThirdFlag = 3;
-                    this.cooldowns.level3 = now;
-                }
-
-                if (this.ThirdFlag > 0 && (now - this.cooldowns.level3 >= this.COOLDOWN_MS)) {
-                    this.ThirdFlag--;
-                    try {
-                        await sendFWAlert();
-                        logger.warn(`🚨 [告警] ${symbol} 最新价格大于0.6`);
-                    } catch (error) {
-                        logger.error('发送通知失败:', error.message);
+                    break;
+                case (close >= 2.7):
+                    if (this.ThirdFlag > 0 && (now - this.lastAlertTime.level3 >= this.COOLDOWN_MS)) {
+                        // 还有警报发送次数，且距离上次发出时间间隔足够长，则发送警报
+                        this.ThirdFlag--;
+                        sendFWAlert();
+                        logger.success(`最新价格大于1.2,发送level3警报, 剩余报警次数 ${this.ThirdFlag}  🚨🚨🚨`);
+                        this.lastAlertTime.level3 = now;
+                    } else if(this.ThirdFlag > 0 && (now - this.lastAlertTime.level3 < this.COOLDOWN_MS)){
+                        // 还有发送次数，但距离上次警报过短，则跳过
+                        logger.warn(`距离上次发出警报时间过短,跳过level3告警`);
+                    } else {
+                        // 无警报发送次数，该价格段的警报发送完毕，目前价格长期处于这个价格段，不再发送警报
+                        logger.warn(`level3无告警发送次数,价格稳定`);
                     }
-                    this.cooldowns.level3 = now;
-                } else {
-                    logger.debug(`跳过level3告警，冷却中 ${(this.COOLDOWN_MS - (now - this.cooldowns.level3)) / 1000}s`);
-                }
+                    break;
+                default:
+                    logger.error(`处理价格变动出现错误`)
+                    break;
             }
-            
             logger.info(`[${symbol}] 最新价格为${close}`);
-            
         } catch (error) {
             logger.error('处理K线数据时出错:', error);
             // logger.error('错误数据:', data);
