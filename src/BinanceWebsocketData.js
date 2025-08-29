@@ -113,14 +113,14 @@ class PriceMonitor {
             switch (true) {
                 case (close < 0.9):
                     this.firstFlag = 3;
-                    logger.info(`最新价格小于0.6, 重置level1报警次数为3`);
+                    logger.info(`最新价格小于0.9, 重置level1报警次数为3`);
                     break;
                 case (close >= 0.9 && close < 1.8):
                     if (this.firstFlag > 0 && (now - this.lastAlertTime.level1 >= this.COOLDOWN_MS)) {
                         // 还有警报发送次数，且距离上次发出时间间隔足够长，则发送警报
                         this.firstFlag--;
                         sendFWAlert();
-                        logger.success(`最新价格大于0.6且小于1.2, 发送level1警报, 剩余报警次数 ${this.firstFlag} 🚨🚨🚨`);
+                        logger.success(`最新价格大于0.9且小于1.8, 发送level1警报, 剩余报警次数 ${this.firstFlag} 🚨🚨🚨`);
                         this.lastAlertTime.level1 = now;
                     } else if(this.firstFlag > 0 && (now - this.lastAlertTime.level1 < this.COOLDOWN_MS)){
                         // 还有发送次数，但距离上次警报过短，则跳过
@@ -130,7 +130,7 @@ class PriceMonitor {
                         logger.warn(`level1无告警发送次数,价格稳定`);
                         if (now - this.lastAlertTime.level1 >= this.COOLDOWN_MS * 20) {
                             this.secondFlag = 3;
-                            logger.info(`最新价格大于0.6且小于1.2, 重置level2报警次数为3`);
+                            logger.info(`最新价格大于0.9且小于1.8, 重置level2报警次数为3`);
                         }
                     }
                     break;
@@ -139,7 +139,7 @@ class PriceMonitor {
                         // 还有警报发送次数，且距离上次发出时间间隔足够长，则发送警报
                         this.secondFlag--;
                         sendFWAlert();
-                        logger.success(`最新价格大于1.2且小于1.8,发送level2警报, 剩余报警次数 ${this.secondFlag} 🚨🚨🚨`);
+                        logger.success(`最新价格大于1.8且小于2.7,发送level2警报, 剩余报警次数 ${this.secondFlag} 🚨🚨🚨`);
                         this.lastAlertTime.level2 = now;
                     } else if(this.secondFlag > 0 && (now - this.lastAlertTime.level2 < this.COOLDOWN_MS)){
                         // 还有发送次数，但距离上次警报过短，则跳过
@@ -150,7 +150,7 @@ class PriceMonitor {
                         // 如果价格稳定在此区间，则重置下一级别警报次数
                         if (now - this.lastAlertTime.level2 >= this.COOLDOWN_MS * 40) {
                             this.ThirdFlag = 3;
-                            logger.info(`最新价格大于0.6且小于1.2, 重置level2报警次数为3`);
+                            logger.info(`最新价格大于1.8且小于2.7, 重置level2报警次数为3`);
                         }
                     }
                     break;
